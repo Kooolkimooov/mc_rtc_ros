@@ -24,8 +24,17 @@ if(NOT TARGET mc_rtc::mc_rtc_ros)
   message(FATAL_ERROR "mc_rtc ROS plugin is required to build this project")
 endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/CMakeModules)
-find_package(Qwt)
+if(NOT DEFINED ENV{ROS_DISTRO})
+  set(ROS_DISTRO "none")
+else()
+  set(ROS_DISTRO "$ENV{ROS_DISTRO}")
+endif()
+
+if(NOT DEFINED ENV{MC_RTC_RVIZ_PANEL_FORCE_QT5})
+  set(FORCE_QT5 0)
+else()
+  set(FORCE_QT5 $ENV{MC_RTC_RVIZ_PANEL_FORCE_QT5})
+endif()
 
 macro(add_ros2_dependency PKG TARGET)
   find_package(${PKG} REQUIRED)
@@ -58,6 +67,51 @@ elseif(ROS_VERSION EQUAL 2)
 else()
   message(FATAL_ERROR "ROS_VERSION ${ROS_VERSION} is not supported yet")
 endif()
+
+if(FORCE_QT5)
+  set(DESIRED_QT_VERSION 5)
+else()
+  if("${ROS_DISTRO}" STREQUAL "lyrical" OR "${ROS_DISTRO}" STREQUAL "rolling")
+    set(DESIRED_QT_VERSION 6)
+  elseif("${ROS_DISTRO}" STREQUAL "indigo")
+    set(DESIRED_QT_VERSION 4)
+  else()
+    set(DESIRED_QT_VERSION 5)
+  endif()
+endif()
+
+set(USE_QT6 0)
+if(DESIRED_QT_VERSION EQUAL 6)
+  set(USE_QT6 1)
+endif()
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/CMakeModules)
+find_package(Qwt)
+
+# Check for Qt version conflict in RViz and Qwt
+foreach(TGT rviz_common::rviz_common Qwt::Qwt)
+  if(TARGET ${TGT})
+    get_target_property(LIBS ${TGT} INTERFACE_LINK_LIBRARIES)
+    get_target_property(QT_VER ${TGT} INTERFACE_QT_MAJOR_VERSION)
+    set(TGT_QT_VER 0)
+    if(QT_VER)
+      set(TGT_QT_VER ${QT_VER})
+    elseif("${LIBS}" MATCHES "Qt6")
+      set(TGT_QT_VER 6)
+    elseif("${LIBS}" MATCHES "Qt5")
+      set(TGT_QT_VER 5)
+    elseif("${LIBS}" MATCHES "Qt4")
+      set(TGT_QT_VER 4)
+    endif()
+
+    if(TGT_QT_VER GREATER 0 AND NOT TGT_QT_VER EQUAL DESIRED_QT_VERSION)
+      message(
+        FATAL_ERROR
+          "Qt version mismatch: ${TGT} requires Qt${TGT_QT_VER} but project is targeting Qt${DESIRED_QT_VERSION}"
+      )
+    endif()
+  endif()
+endforeach()
 
 add_subdirectory(src)
 

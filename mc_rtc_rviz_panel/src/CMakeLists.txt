@@ -38,20 +38,6 @@ else()
   set(ROS_DISTRO "$ENV{ROS_DISTRO}")
 endif()
 
-# Stricty speaking we'd want to check <= indigo but the goal is to support 14.04
-# and strictly go forward from that
-if(NOT DEFINED ENV{MC_RTC_RVIZ_PANEL_FORCE_QT5})
-  set(FORCE_QT5 0)
-else()
-  set(FORCE_QT5 $ENV{MC_RTC_RVIZ_PANEL_FORCE_QT5})
-endif()
-
-if(NOT ${FORCE_QT5} AND "${ROS_DISTRO}" STREQUAL "lyrical")
-  set(USE_QT6 1)
-else()
-  set(USE_QT6 0)
-endif()
-
 if(NOT ${FORCE_QT5} AND "${ROS_DISTRO}" STREQUAL "indigo")
   find_package(
     Qt4
