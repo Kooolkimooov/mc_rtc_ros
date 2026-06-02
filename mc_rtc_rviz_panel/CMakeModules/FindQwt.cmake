@@ -1,18 +1,20 @@
 # Adapted from
 # https://stackoverflow.com/questions/58844585/use-qwt-installed-via-brew-in-cmake
 
-set(QWT_PATHS /usr /usr/local/ /usr/local/share/ /usr/share/
-              "${CMAKE_INSTALL_PREFIX}")
+file(GLOB QWT_CUSTOM_PATHS /usr/local/qwt-*)
+set(QWT_PATHS ${QWT_CUSTOM_PATHS} /usr/local/ /usr /usr/local/share/
+              /usr/share/ "${CMAKE_INSTALL_PREFIX}")
 
 set(QWT_HINTS /usr/local/opt/qwt/lib)
 
-find_path(
-  Qwt_INCLUDE_DIR
-  NAMES qwt.h
-  PATHS ${QWT_PATHS}
-  HINTS ${QWT_HINTS}
-  PATH_SUFFIXES include qwt-qt4 qwt-qt5 qwt Headers
-  DOC "Variable storing the location of Qwt header")
+if(USE_QT6)
+  set(QWT_NAMES qwt-qt6 qwt)
+  set(QWT_SUFFIXES include qwt-qt6 qwt6-qt6 qwt)
+else()
+  set(QWT_NAMES qwt-qt5 qwt qwt-qt4)
+  set(QWT_SUFFIXES include qwt-qt5 qwt-qt4 qwt)
+endif()
+list(APPEND QWT_SUFFIXES include/qwt)
 
 set(ARCH_SUFFIX "lib")
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
@@ -21,11 +23,30 @@ endif()
 
 find_library(
   Qwt_LIBRARY
-  NAMES qwt-qt6 qwt-qt5 qwt qwt-qt4
+  NAMES ${QWT_NAMES}
   PATHS ${QWT_PATHS}
   HINTS ${QWT_HINTS}
   PATH_SUFFIXES ${ARCH_SUFFIX}
   DOC "Variable storing the location of Qwt library")
+
+if(Qwt_LIBRARY)
+  get_filename_component(QWT_LIB_DIR ${Qwt_LIBRARY} DIRECTORY)
+  get_filename_component(QWT_PREFIX ${QWT_LIB_DIR} DIRECTORY)
+  find_path(
+    Qwt_INCLUDE_DIR
+    NAMES qwt.h
+    PATHS ${QWT_PREFIX}
+    PATH_SUFFIXES ${QWT_SUFFIXES}
+    NO_DEFAULT_PATH)
+endif()
+
+find_path(
+  Qwt_INCLUDE_DIR
+  NAMES qwt.h
+  PATHS ${QWT_PATHS}
+  HINTS ${QWT_HINTS}
+  PATH_SUFFIXES ${QWT_SUFFIXES} Headers
+  DOC "Variable storing the location of Qwt header")
 
 set(Qwt_VERSION ${Qwt_FIND_VERSION})
 include(FindPackageHandleStandardArgs)
